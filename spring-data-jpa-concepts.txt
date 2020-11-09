@@ -1,0 +1,126 @@
+To run and create Default schemas for this project:
+- docker run -d -e MYSQL_ROOT_PASSWORD=jaishreeram -e MYSQL_USER=kbhatt23 -e MYSQL_PASSWORD=jaishreeram -e MYSQL_DATABASE=learn-mysql --name mysql --publish 3306:3306 -v mysql-database-volume:/var/lib/mysql mysql:5.7
+
+To connect to sql shell: 
+- \connect kbhatt23@localhost:3306
+
+- In D.B like mysql we can use auto_increment feature of D.B
+	using sql -> AUTO_INCREMENT for id
+	-> this auto increments the id from D.B side , and in spring JPA we can set @generatedValue(strategy=IDENTITY) -> meaning jpa need not to put it
+- In D.B like oracle sql and microsoft sql , this feature is not present directly and we need to create sequence genrators for this
+
+-------Spring ID Generators--------
+- It is the job of JPA provider like hibernate to auto genrate the ID column,
+	 in case we do not want auto gerneated do not add annotation @generatedValue, we have to write code to call setter of id with code enerated value
+- Strategy Types:
+	a. Identity : Supported by D.B like mysql, postgresql
+		 -> no need for jpa provider to set any id, or also dev do not need to set the id in entity bean
+		 -> in sql we need to add auto increment and D.B will auto incerment the id
+	b. Sequence: Supported by D.B like oracle but not supportd by mysql
+		    -> we need to create sequence based on rule and pass ths strategy in @genratedValue annotaiton
+	c. Table: As the name suggest a new table needs to be created and the column of that table will hold the id,
+		on each new insertion of row in main table it looks for last entry of the id table and increment that value and use that as id for new row of main table
+
+		
+);
+	- gen_name column will represent the entity name -> this will help use same table for all the entitties present
+	- gen_val will represent the id of that entity , everytime this row will get updated , -> new row wont be inserted
+	d. Auto: JPA porvider like hibernate needs to identify what stragey is provided by D.B
+
+In table strategy
+	- we create a common table for ids
+	- one column will be holding entity name -> it has to be primary key as each entity will be unique
+	- another column will be holding the id int value
+	for table strategy create below extra tables 
+ 
+	create table id_gen(
+	gen_name varchar(60) PRIMARY KEY,
+	gen_val int(20);
+  -> in entity bean we need to first create a tablegenerator -> mapping the table name , its primary column and value columns
+	-> then we can provide strategy as Table by passing the above table genrateor name
+		
+
+- PaginationAndSorting repository interface provides paging and sorting of findAll methods by default
+
+- Native SQL are useful in below scenarios
+	a. when there are bulk operations, JPQL/jpa are useful on single item like update all rows with specific column value, JPQL will do this one by one in for loop
+	b. when there are DDL operations like create table/drop tablke, JPQL do not support DDLs
+	eg is JPQL do no support drop table,create table, truncate table but SQL supports it natively
+	c. very complex multiple table joins , as JPQL will become very complex
+	
+
+
+--------------------Inheritance mapping---------------
+a. single table : 
+	all subtypes and super type are put in same table
+	goodd ofr perfoamrnce read when there are less number of sub classes expected
+	- table structure:
+	cloumns -> all super class properties(priary key),
+	 	   all child properties(excluse the primary key here as super class already have), 
+	 	   Enum type -> differentiating each type of child
+	both read and write is fast as we have to insert and select form single table with no join
+	hoiwever there are lot of columns whihc will be null based on discriminator type, also extra column of discriminator will exist in table
+
+b. table per class:
+	The tables for child classes are created and seperate class for super class entity do not exiist
+	- All the common columns are present in all the sub class entity tables
+	-> this is not good in normalization , however read and write are faster here
+	-> do not support identity and auto id generated value strategy, use custom genrat, table genreator or sequenc genrator for table per class inheritance strategy
+c. joined:
+	In this stretegy all the tables have its own table and its own set of columns
+	only idfference is that child will have a foreign key reference column to primary key present in super table column
+	-> good data normalization but while reading join will slow down performance
+
+
+--- component mapping
+- can be done using @embedable and @embeded
+- This is done in case of has a relatio ship or composition
+- the embedable class can not have another tbale other wise it would be same as one to one mapping
+- The colummns present in @mebedable class will be kept in table of entity class where we keep it as insance variable (composition)
+- If @embedable was supposed to also have table along with te amin table then it would be same like one to one relation ship and hence this is used when Embedable class do not have table at all
+
+//an embedable entity do not have independent table
+// and embedable entity will push all its columns to the class that uses it
+// once a class uses @emebded annotiuon on a field (has a relation ship) m all columns are pushed to table of main entity
+// an embedable entity need not to have primary key as it is not an indepedent table unlike one to one mapping
+ -> ***** in simple words one to one relation ship is composition where eac class can have table entities indeependntly and can exit independently
+	however in case of emberdable , the embedable class can not exist in D.B independently and hence relatinhsip is aggregation 
+
+
+--------------------------Cascading----------
+- Used in case of entity relationships, in case parent is modified/inserted/removed what should happen to the mapped rleated entity
+- types:
+	a. persist : If we are creating parent and setting other entoity object to it and call repo.save of main entity ,then it inserts for other entity as well
+	b. merge: Same as above for insertion as well as updation,
+	c. remove: If parent is removed remove the row for other entity as well from other table
+	d. detach, refresh : if parent eneitty is done refresh/detached using entity manager in code it do so for child also
+	E. ALL: ALL OB ABOVE ALL TOGETHER
+
+
+
+------------------------Caching-----------------
+a. Hibernate like ORM framework stores the transformed object in cache for performance, using annotation we can store this , updat ethe cache , on delete of itme remove form cache,
+		manually remove the item from cache etc
+b. This saves the select call to D.B and hence useful in performance
+
+- Level 1 cahce is enabled by default in hibernate: -> stored in individual session object of hibernate
+ 	Any select query withing the session of same user will be cahced and next time wont even call the same select query if present in cache
+
+- Level 2 like MEmcache , redis stores data for all users -> stored in session factory
+
+	In short level 1 cache will be stored only for specific user for that specific session , but level 2 stores data for all the users -> sessionfactory is shared object across user sessions
+- Sessions in spring is managed through jsession id cookie, if we use postman for call it stores jsession id cookie and evey time till this cookie sis present , 
+		apache will consider this as part of same session and hence level 1 works till this level
+- If we open another browser that will have differnet jsessionid and hence wont see the same cahced item, hibernate will call the D.B for this select query
+
+
+- Level 1 cache can be enabled just by adding @transactional annotation to the method
+ -> level 1 cache works only within the same transactin, if one method is annotated with transaciotn and if it is over and a new method calls the same jpa repository method
+	then it calls the item
+
+
+===========Images-----------
+- Images can be stored in Data base in format of byte array,
+- Using fileiputstream and fileoutputstream we can transform the file of any format to byte array
+	this byte[] can be stored in Data base like a blob data type , 
+	Similarly using fileoutstream we can conver tthe byte array to file
