@@ -124,3 +124,12 @@ b. This saves the select call to D.B and hence useful in performance
 - Using fileiputstream and fileoutputstream we can transform the file of any format to byte array
 	this byte[] can be stored in Data base like a blob data type , 
 	Similarly using fileoutstream we can conver tthe byte array to file
+
+-------------------composite keys--------
+- A table that can have more than one column acting as primary key is called compaosite key containing table
+
+Two ways to implement:
+a. Using @idClass -> therer will be duplication of fields in idclass and main class
+b. using EmbebedId -> there will be no duplication of field
+difference: while using JPQL using idclass query will eb esimpler eg : select s from tablename s where s.firstName=:queryValue
+	in case of embedeable: select s from tablename s where s.idclass.firstName=:queryValue
